@@ -1,10 +1,10 @@
 #!/bin/sh
 # Syncs ~/.config/wezterm/ to the Windows config path.
 # Checksums below cause chezmoi to re-run this script when any wezterm file changes.
-# wezterm.lua:      {{ include "dot_config/wezterm/executable_wezterm.lua" | sha256sum }}
-# features.lua:     {{ include "dot_config/wezterm/executable_features.lua" | sha256sum }}
-# theme_rotator.lua:{{ include "dot_config/wezterm/executable_theme_rotator.lua" | sha256sum }}
-# globals.toml:     {{ include "dot_config/wezterm/executable_globals.toml" | sha256sum }}
+# wezterm.lua:      {{ include "dot_config/wezterm/wezterm.lua" | sha256sum }}
+# features.lua:     {{ include "dot_config/wezterm/features.lua" | sha256sum }}
+# theme_rotator.lua:{{ include "dot_config/wezterm/theme_rotator.lua" | sha256sum }}
+# globals.toml:     {{ include "dot_config/wezterm/globals.toml" | sha256sum }}
 
 DEST="/mnt/c/Users/Andy/.config/wezterm"
 SRC="$HOME/.config/wezterm"
