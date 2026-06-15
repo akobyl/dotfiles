@@ -4,11 +4,16 @@ local act = wezterm.action
 
 local config = wezterm.config_builder()
 
--- Returns the current working directory for a pane (requires OSC 7 in shell)
+-- Returns the current working directory for a pane (requires OSC 7 in shell).
+-- Rejects Windows-style paths (e.g. /C:/Users/Andy) that WSL cannot chdir to;
+-- those appear when OSC 7 hasn't fired yet and WezTerm falls back to the Win CWD.
 local function get_cwd(pane)
     local cwd_uri = pane:get_current_working_dir()
     if cwd_uri then
-        return cwd_uri.file_path
+        local path = cwd_uri.file_path
+        if path and not path:match("^/%a:/") then
+            return path
+        end
     end
     return nil
 end
@@ -127,7 +132,8 @@ config.keys = {
         mods = "CTRL|SHIFT",
         action = wezterm.action_callback(function(window, pane)
             local cwd = get_cwd(pane)
-            window:perform_action(act.SpawnCommandInNewTab({ cwd = cwd }), pane)
+            local cmd = cwd and { cwd = cwd } or {}
+            window:perform_action(act.SpawnCommandInNewTab(cmd), pane)
         end),
     },
 
@@ -137,10 +143,9 @@ config.keys = {
         mods = "CTRL|SHIFT",
         action = wezterm.action_callback(function(window, pane)
             local cwd = get_cwd(pane)
-            window:perform_action(
-                act.SplitPane({ direction = "Right", command = { cwd = cwd } }),
-                pane
-            )
+            local split = { direction = "Right" }
+            if cwd then split.command = { cwd = cwd } end
+            window:perform_action(act.SplitPane(split), pane)
         end),
     },
 }
