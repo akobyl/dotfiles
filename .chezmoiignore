@@ -1,0 +1,2 @@
+# Ignore nvim plugin lock file — changes too frequently
+dot_config/nvim/lazy-lock.json

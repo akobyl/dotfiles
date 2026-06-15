@@ -1,0 +1,28 @@
+# WezTerm: emit OSC 7 so new tabs/panes inherit the current directory
+function _wezterm_osc7() {
+    printf '\033]7;file://%s%s\033\\' "$HOST" "$PWD"
+}
+precmd_functions+=(_wezterm_osc7)
+
+export FLYCTL_INSTALL="/home/andy/.fly"
+
+path+=(
+    /usr/local/go/bin
+    /home/andy/.local/bin
+    /opt/nvim-linux64/bin
+    ~/bin
+    "$FLYCTL_INSTALL/bin"
+)
+
+. "$HOME/.atuin/bin/env"
+
+eval "$(atuin init zsh)"
+eval "$(starship init zsh)"
+eval "$(zoxide init zsh)"
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+alias lg='lazygit'
+alias nv='nvim'
