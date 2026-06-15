@@ -1,5 +1,7 @@
 local wezterm = require("wezterm")
 local theme_rotator = require("theme_rotator")
+local features = require("features")
+local tabline = wezterm.plugin.require("https://github.com/michaelbrusegard/tabline.wez")
 local act = wezterm.action
 
 local config = wezterm.config_builder()
@@ -16,6 +18,18 @@ local function get_cwd(pane)
         end
     end
     return nil
+end
+
+-- Git branch component for tabline right status
+local function git_branch(window)
+    local pane = window:active_pane()
+    local cwd = get_cwd(pane)
+    if not cwd then return "" end
+    local ok, stdout = wezterm.run_child_process({ "git", "-C", cwd, "rev-parse", "--abbrev-ref", "HEAD" })
+    if not ok or not stdout then return "" end
+    local branch = stdout:gsub("%s+$", "")
+    if branch == "" or branch == "HEAD" then return "" end
+    return wezterm.nerdfonts.dev_git_branch .. "  " .. branch
 end
 
 -- Project directories for WSL
@@ -80,7 +94,6 @@ config.default_domain = "WSL:Ubuntu-22.04"
 config.default_prog = { "wsl" }
 config.default_cwd = "\\\\wsl.localhost\\Ubuntu-22.04\\home\\andy"
 config.allow_win32_input_mode = false
-config.hide_tab_bar_if_only_one_tab = true
 
 config.window_padding = { left = 0, right = 0, top = 0, bottom = 0 }
 
@@ -93,6 +106,26 @@ config.wsl_domains = {
     },
 }
 
+tabline.setup({
+    sections = {
+        tabline_a = { "mode" },
+        tabline_b = { "workspace" },
+        tabline_c = { " " },
+        tab_active = {
+            "index",
+            { "parent", padding = 0 },
+            "/",
+            { "cwd", padding = { left = 0, right = 1 } },
+            { "zoomed", padding = 0 },
+        },
+        tab_inactive = { "index", { "cwd", padding = { left = 0, right = 1 } } },
+        tabline_x = { git_branch },
+        tabline_y = { "cwd" },
+        tabline_z = { "domain" },
+    },
+})
+tabline.apply_to_config(config)
+
 wezterm.on("toggle-tabbar", function(window, _)
     local overrides = window:get_config_overrides() or {}
     if overrides.enable_tab_bar == false then
@@ -101,10 +134,6 @@ wezterm.on("toggle-tabbar", function(window, _)
         overrides.enable_tab_bar = false
     end
     window:set_config_overrides(overrides)
-end)
-
-wezterm.on("update-status", function(window, pane)
-    window:set_right_status(pane:get_domain_name())
 end)
 
 wezterm.on("rotate-theme-next", function(window, _)
@@ -121,6 +150,13 @@ config.keys = {
 
     -- Theme rotation
     { key = "n", mods = "CTRL|ALT", action = act.EmitEvent("rotate-theme-next") },
+
+    -- Fuzzy theme picker
+    {
+        key = "s",
+        mods = "LEADER",
+        action = wezterm.action_callback(features.theme_switcher),
+    },
 
     -- Project switcher
     { key = "p", mods = "LEADER", action = choose_project() },
@@ -146,6 +182,32 @@ config.keys = {
             local split = { direction = "Right" }
             if cwd then split.command = { cwd = cwd } end
             window:perform_action(act.SplitPane(split), pane)
+        end),
+    },
+
+    -- Close current pane (Ctrl+Shift+W closes the whole tab)
+    {
+        key = "w",
+        mods = "CTRL",
+        action = act.CloseCurrentPane({ confirm = true }),
+    },
+
+    -- Rename current tab
+    {
+        key = "r",
+        mods = "CTRL|SHIFT",
+        action = wezterm.action_callback(function(window, pane)
+            window:perform_action(
+                act.PromptInputLine({
+                    description = "Tab name:",
+                    action = wezterm.action_callback(function(inner_window, _, line)
+                        if line then
+                            inner_window:active_tab():set_title(line)
+                        end
+                    end),
+                }),
+                pane
+            )
         end),
     },
 }

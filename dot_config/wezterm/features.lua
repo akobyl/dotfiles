@@ -36,13 +36,12 @@ M.switcher = function(window, pane, title, data, action)
 end
 
 M.theme_switcher = function(window, pane)
-	wezterm.log_info("theme_switcher")
 	local schemes = wezterm.get_builtin_color_schemes()
-	local action = wezterm.action_callback(function(_, _, _, label)
+	local action = wezterm.action_callback(function(inner_window, _, _, label)
 		if label then
-			local lua = M.getLuaFromTOML()
-			lua.colorscheme = label
-			M.writeLuaToTOML(lua)
+			local overrides = inner_window:get_config_overrides() or {}
+			overrides.color_scheme = label
+			inner_window:set_config_overrides(overrides)
 		end
 	end)
 
