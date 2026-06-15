@@ -20,6 +20,21 @@ local function get_cwd(pane)
     return nil
 end
 
+-- Tab title: user rename takes priority, then foreground process, then pane title
+local function tab_title(tab)
+    if tab.tab_title and #tab.tab_title > 0 then
+        return " " .. tab.tab_title .. " "
+    end
+    local proc = tab.active_pane.foreground_process_name
+    if proc and proc ~= "" then
+        proc = proc:match("([^/\\]+)$") or proc
+        if proc ~= "wslhost.exe" then
+            return " " .. proc .. " "
+        end
+    end
+    return " " .. (tab.active_pane.title or "") .. " "
+end
+
 -- Right-status custom components (cwd is tab-only in tabline.wez, so use window functions)
 local function active_cwd(window)
     local cwd = get_cwd(window:active_pane())
@@ -115,14 +130,8 @@ tabline.setup({
         tabline_a = { "mode" },
         tabline_b = { "workspace" },
         tabline_c = { " " },
-        tab_active = {
-            "index",
-            { "parent", padding = 0 },
-            "/",
-            { "cwd", padding = { left = 0, right = 1 } },
-            { "zoomed", padding = 0 },
-        },
-        tab_inactive = { "index", { "cwd", padding = { left = 0, right = 1 } } },
+        tab_active = { "index", tab_title, { "zoomed", padding = 0 } },
+        tab_inactive = { "index", tab_title },
         tabline_x = { git_branch },
         tabline_y = { active_cwd },
         tabline_z = { "domain" },
