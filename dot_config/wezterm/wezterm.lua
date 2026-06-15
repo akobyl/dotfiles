@@ -20,10 +20,14 @@ local function get_cwd(pane)
     return nil
 end
 
--- Git branch component for tabline right status
+-- Right-status custom components (cwd is tab-only in tabline.wez, so use window functions)
+local function active_cwd(window)
+    local cwd = get_cwd(window:active_pane())
+    return cwd or ""
+end
+
 local function git_branch(window)
-    local pane = window:active_pane()
-    local cwd = get_cwd(pane)
+    local cwd = get_cwd(window:active_pane())
     if not cwd then return "" end
     local ok, stdout = wezterm.run_child_process({ "git", "-C", cwd, "rev-parse", "--abbrev-ref", "HEAD" })
     if not ok or not stdout then return "" end
@@ -120,7 +124,7 @@ tabline.setup({
         },
         tab_inactive = { "index", { "cwd", padding = { left = 0, right = 1 } } },
         tabline_x = { git_branch },
-        tabline_y = { "cwd" },
+        tabline_y = { active_cwd },
         tabline_z = { "domain" },
     },
 })
@@ -192,10 +196,10 @@ config.keys = {
         action = act.CloseCurrentPane({ confirm = true }),
     },
 
-    -- Rename current tab
+    -- Rename current tab (Ctrl+Shift+R is taken by reload-config)
     {
         key = "r",
-        mods = "CTRL|SHIFT",
+        mods = "LEADER",
         action = wezterm.action_callback(function(window, pane)
             window:perform_action(
                 act.PromptInputLine({
