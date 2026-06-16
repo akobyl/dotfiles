@@ -198,10 +198,10 @@ config.keys = {
         end),
     },
 
-    -- Close current pane (Ctrl+Shift+W closes the whole tab)
+    -- Close current pane
     {
         key = "w",
-        mods = "CTRL",
+        mods = "LEADER",
         action = act.CloseCurrentPane({ confirm = true }),
     },
 
