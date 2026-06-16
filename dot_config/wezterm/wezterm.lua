@@ -83,7 +83,7 @@ local function cwd_from_pane_info(pane_info)
     return nil
 end
 
--- Right-status custom components (cwd is tab-only in tabline.wez, so use window functions)
+-- Right-status custom components (derived from the active pane on the window)
 local function active_cwd(window)
     local cwd = get_cwd(window:active_pane())
     return cwd or ""
@@ -96,7 +96,7 @@ local function git_branch(window)
     if not ok or not stdout then return "" end
     local branch = stdout:gsub("%s+$", "")
     if branch == "" or branch == "HEAD" then return "" end
-    return wezterm.nerdfonts.dev_git_branch .. "  " .. branch
+    return branch
 end
 
 -- Project directories for WSL
@@ -183,6 +183,7 @@ weather.setup({
     location = weather_location,
     units = "fahrenheit",
     update_interval = 600,
+    show_icon = false,
 })
 
 -- Retro (non-fancy) tab bar: flat, square-ish colored blocks, no powerline
@@ -234,7 +235,7 @@ wezterm.on("update-status", function(window, pane)
 
     window:set_right_status(wezterm.format({
         { Foreground = { Color = "#a0a0a0" } },
-        { Text = "  " .. table.concat(segments, "  │  ") .. "  " },
+        { Text = "  " .. table.concat(segments, " | ") .. "  " },
     }))
 end)
 
