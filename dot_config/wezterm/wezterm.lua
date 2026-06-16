@@ -1,7 +1,6 @@
 local wezterm = require("wezterm")
 local theme_rotator = require("theme_rotator")
 local features = require("features")
-local tabline = wezterm.plugin.require("https://github.com/michaelbrusegard/tabline.wez")
 local weather = wezterm.plugin.require("https://github.com/akobyl/wez-weather")
 local act = wezterm.action
 
@@ -24,16 +23,64 @@ end
 -- Tab title: user rename takes priority, then foreground process, then pane title
 local function tab_title(tab)
     if tab.tab_title and #tab.tab_title > 0 then
-        return " " .. tab.tab_title .. " "
+        return tab.tab_title
     end
     local proc = tab.active_pane.foreground_process_name
     if proc and proc ~= "" then
         proc = proc:match("([^/\\]+)$") or proc
         if proc ~= "wslhost.exe" then
-            return " " .. proc .. " "
+            return proc
         end
     end
-    return " " .. (tab.active_pane.title or "") .. " "
+    return tab.active_pane.title or ""
+end
+
+-- A hand-picked palette of distinct, readable-on-white-text colors. Tabs are
+-- colored by hashing their cwd, so the same directory always gets the same
+-- color (and different directories are very likely to differ).
+local TAB_COLORS = {
+    "#7c3aed", -- violet
+    "#dc2626", -- red
+    "#ea580c", -- orange
+    "#0284c7", -- blue
+    "#16a34a", -- green
+    "#ca8a04", -- amber
+    "#db2777", -- pink
+    "#0d9488", -- teal
+    "#4f46e5", -- indigo
+    "#65a30d", -- olive
+    "#9333ea", -- purple
+    "#0891b2", -- cyan
+}
+
+-- Simple djb2-style string hash (no bitwise ops, so it's portable across Lua
+-- versions). Only used to pick a stable index into TAB_COLORS.
+local function hash_string(str)
+    local hash = 5381
+    for i = 1, #str do
+        hash = (hash * 33 + str:byte(i)) % 2147483647
+    end
+    return hash
+end
+
+local function color_for_path(path)
+    if not path or path == "" then
+        return TAB_COLORS[1]
+    end
+    return TAB_COLORS[(hash_string(path) % #TAB_COLORS) + 1]
+end
+
+-- Like get_cwd, but for the PaneInformation tables handed to format-tab-title
+-- (a plain table with a `current_working_dir` field, not a live Pane object).
+local function cwd_from_pane_info(pane_info)
+    local cwd_uri = pane_info and pane_info.current_working_dir
+    if cwd_uri then
+        local path = cwd_uri.file_path
+        if path and not path:match("^/%a:/") then
+            return path
+        end
+    end
+    return nil
 end
 
 -- Right-status custom components (cwd is tab-only in tabline.wez, so use window functions)
@@ -138,19 +185,58 @@ weather.setup({
     update_interval = 600,
 })
 
-tabline.setup({
-    sections = {
-        tabline_a = { "mode" },
-        tabline_b = { "workspace" },
-        tabline_c = { " " },
-        tab_active = { "index", tab_title, { "zoomed", padding = 0 } },
-        tab_inactive = { "index", tab_title },
-        tabline_x = { git_branch },
-        tabline_y = { active_cwd },
-        tabline_z = { weather.component, "domain" },
-    },
-})
-tabline.apply_to_config(config)
+-- Retro (non-fancy) tab bar: flat, square-ish colored blocks, no powerline
+-- arrows, no leader/mode indicator. Tabs colored per-cwd (see TAB_COLORS);
+-- weather/git-branch/cwd live in the right status instead of as tabs.
+config.use_fancy_tab_bar = false
+config.tab_bar_at_bottom = true
+config.tab_max_width = 32
+config.show_new_tab_button_in_tab_bar = true
+config.colors = config.colors or {}
+config.colors.tab_bar = {
+    background = "#1e1e1e",
+    new_tab = { bg_color = "#1e1e1e", fg_color = "#6b6b6b" },
+    new_tab_hover = { bg_color = "#333333", fg_color = "#ffffff" },
+    inactive_tab_edge = "#1e1e1e",
+}
+
+wezterm.on("format-tab-title", function(tab, tabs, panes, conf, hover, max_width)
+    local cwd = cwd_from_pane_info(tab.active_pane)
+    local bg = color_for_path(cwd or tostring(tab.tab_id))
+    local title = tab_title(tab)
+    local text = string.format(" %d: %s ", tab.tab_index + 1, title)
+    if #text > max_width then
+        text = text:sub(1, max_width - 1) .. "… "
+    end
+    return {
+        { Background = { Color = bg } },
+        { Foreground = { Color = "#ffffff" } },
+        { Attribute = { Intensity = tab.is_active and "Bold" or "Normal" } },
+        { Text = text },
+    }
+end)
+
+-- Right status: weather, git branch, cwd (in that order, left to right).
+wezterm.on("update-status", function(window, pane)
+    local segments = {}
+    local weather_text = weather.component(window)
+    if weather_text ~= "" then
+        table.insert(segments, weather_text)
+    end
+    local branch = git_branch(window)
+    if branch ~= "" then
+        table.insert(segments, branch)
+    end
+    local cwd = active_cwd(window)
+    if cwd ~= "" then
+        table.insert(segments, cwd)
+    end
+
+    window:set_right_status(wezterm.format({
+        { Foreground = { Color = "#a0a0a0" } },
+        { Text = "  " .. table.concat(segments, "  │  ") .. "  " },
+    }))
+end)
 
 wezterm.on("toggle-tabbar", function(window, _)
     local overrides = window:get_config_overrides() or {}
