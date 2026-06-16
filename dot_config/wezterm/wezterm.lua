@@ -2,6 +2,7 @@ local wezterm = require("wezterm")
 local theme_rotator = require("theme_rotator")
 local features = require("features")
 local tabline = wezterm.plugin.require("https://github.com/michaelbrusegard/tabline.wez")
+local weather = wezterm.plugin.require("https://github.com/akobyl/wez-weather")
 local act = wezterm.action
 
 local config = wezterm.config_builder()
@@ -125,6 +126,18 @@ config.wsl_domains = {
     },
 }
 
+-- local_config.lua is NOT chezmoi-managed and lives only on this machine
+-- (alongside wezterm.lua), so a real location never ends up in this public
+-- dotfiles repo. Create it with: return { location = "your-zip-or-city" }
+local ok, local_config = pcall(require, "local_config")
+local weather_location = (ok and local_config and local_config.location) or "New York"
+
+weather.setup({
+    location = weather_location,
+    units = "fahrenheit",
+    update_interval = 600,
+})
+
 tabline.setup({
     sections = {
         tabline_a = { "mode" },
@@ -134,7 +147,7 @@ tabline.setup({
         tab_inactive = { "index", tab_title },
         tabline_x = { git_branch },
         tabline_y = { active_cwd },
-        tabline_z = { "domain" },
+        tabline_z = { weather.component, "domain" },
     },
 })
 tabline.apply_to_config(config)
