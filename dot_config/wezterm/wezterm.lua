@@ -223,6 +223,7 @@ local ok_lc, local_config = pcall(require, "local_config")
 local weather_location = (ok_lc and local_config and local_config.location) or "New York"
 
 wezterm.on("update-status", function(window, pane)
+    window:set_left_status("")   -- clear any stale status left by previous configs
     local parts = {}
 
     local w = weather_text(weather_location)
